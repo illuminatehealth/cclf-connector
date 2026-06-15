@@ -1,0 +1,14 @@
+version: 2
+
+seeds:
+  - name: metadata_fields
+    config:
+      schema: _int_input_layer
+      tags: connector
+      column_types:
+        payer: |
+          {%- if target.type in ("bigquery", "databricks") -%} string {%- else -%} varchar(255) {%- endif -%}
+        plan: |
+          {%- if target.type in ("bigquery", "databricks") -%} string {%- else -%} varchar(255) {%- endif -%}
+        data_source: |
+          {%- if target.type in ("bigquery", "databricks") -%} string {%- else -%} varchar(255) {%- endif -%}      

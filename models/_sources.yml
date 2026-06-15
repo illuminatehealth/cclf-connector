@@ -1,0 +1,34 @@
+version: 2
+
+sources:
+  - name: medicare_cclf
+    database: "{{ target.database }}"
+    schema: "{{ target.schema }}_{{ var('team_cclf_raw_schema', 'team_cclf_raw') }}"
+    tables:
+      - name: beneficiary_demographics #CCLF8
+      - name: beneficiary_xref #CCLF9
+      - name: enrollment #custom input
+      - name: parta_claims_header #CCLF1
+      - name: parta_claims_revenue_center_detail #CCLF2
+      - name: parta_diagnosis_code #CCLF4
+      - name: parta_procedure_code #CCLF3
+      - name: partb_dme #CCLF6
+      - name: partb_physicians #CCLF5
+      - name: partd_claims #CCLF7
+      - name: alr_1_1_df #alr1-1
+
+  - name: lakehouse
+    database: "{{ target.database }}"
+    schema: "{{ target.schema }}_{{ var('team_cclf_raw_schema', 'team_cclf_raw') }}"
+    tables:
+      - name: cclf_1 
+      - name: cclf_2       
+      - name: cclf_3 
+      - name: cclf_4 
+      - name: cclf_5 
+      - name: cclf_6 
+      - name: cclf_8 
+      - name: cclf_9 
+      - name: alr_1_1     
+      - name: alr_1_1_retro
+      - name: mssp_attribution 

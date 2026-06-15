@@ -1,0 +1,453 @@
+version: 2
+
+models:
+### final
+  - name: eligibility
+    description: >
+      Member enrollment and demographic detail, converts member months to 
+      enrollment spans.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
+      tags: connector
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - member_id
+            - enrollment_start_date
+            - enrollment_end_date
+    columns:
+      - name: person_id
+        tests:
+          - not_null
+      - name: member_id
+        tests:
+          - not_null
+      - name: enrollment_start_date
+        tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: medicare_part_b_enrollment_start_date
+        description: Part B enrollment start date from CCLF8 (BENE_PART_B_ENRLMT_BGN_DT).
+      - name: enrollment_end_date
+        tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: entitlement_buy_in_indicator
+        description: Monthly Medicare buy-in indicator from CCLF8 (BENE_ENTLMT_BUYIN_IND).
+      - name: tuva_last_run
+        description: Timestamp when dbt last built this model.
+
+  - name: medical_claim
+    description: Claim line level medical data.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
+      tags: connector      
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - claim_id
+            - claim_line_number
+    columns:
+      - name: claim_id
+        tests:
+          - not_null
+      - name: claim_line_number
+        tests:
+          - not_null
+      - name: claim_type_code
+        description: Claim type code from CCLF (CLM_TYPE_CD).
+      - name: person_id
+        tests:
+          - not_null
+      - name: member_id
+        tests:
+          - not_null
+      - name: ccn
+        description: Facility CMS Certification Number (OSCAR/CCN). For institutional claims, prefers CLM_BLG_PRVDR_OSCAR_NUM (newer, 2022+) and falls back to PRVDR_OSCAR_NUM (older, pre-2022). Null for professional and DME claims.
+      - name: claim_provider_specialty_code
+        description: Rendering provider specialty code from professional claims (CLM_PRVDR_SPCLTY_CD). Null for institutional and DME.
+      - name: operating_npi
+        description: Operating provider NPI from institutional claims (OPRTG_PRVDR_NPI_NUM). Null for professional and DME.
+      - name: attending_npi
+        description: Attending provider NPI from institutional claims (ATNDG_PRVDR_NPI_NUM). Null for professional and DME.
+      - name: other_npi
+        description: Other provider NPI from institutional claims (OTHR_PRVDR_NPI_NUM). Null for professional and DME.
+      - name: paid_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config:
+                severity: warn
+      - name: allowed_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config:
+                severity: warn
+      - name: charge_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config:
+                severity: warn
+      - name: coinsurance_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config:
+                severity: warn
+      - name: copayment_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config:
+                severity: warn
+      - name: deductible_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config:
+                severity: warn
+      - name: total_cost_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config:
+                severity: warn
+      - name: tuva_last_run
+        description: Timestamp when dbt last built this model.
+
+  - name: pharmacy_claim
+    description: Claim line level pharmacy data.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
+      tags: connector        
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - claim_id
+            - claim_line_number
+    columns:
+      - name: claim_id
+        tests:
+          - not_null
+      - name: claim_line_number
+        tests:
+          - not_null
+      - name: person_id
+        tests:
+          - not_null
+      - name: member_id
+        tests:
+          - not_null
+      - name: ndc_code
+        tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: paid_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config:
+                severity: warn
+      - name: allowed_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config:
+                severity: warn
+      - name: charge_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config:
+                severity: warn
+      - name: coinsurance_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config:
+                severity: warn
+      - name: copayment_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config:
+                severity: warn
+      - name: deductible_amount
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              config:
+                severity: warn
+      - name: tuva_last_run
+        description: Timestamp when dbt last built this model.
+
+  - name: provider_attribution
+    description: provider attribution table
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
+      materialized: table
+      alias: provider_attribution
+      tags: connector      
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - person_id
+            - payer
+            - "\"plan\""
+            - year_month
+
+### intermediate
+  - name: int_alr_1_1_union
+    description: Union current and retro ALR 1-1 staging models.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: alr_1_1_union
+      tags: connector
+
+  - name: int_beneficiary_demographics_deduped
+    description: Dedupe attribution.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: beneficiary_demographics_deduped
+      tags: connector      
+
+  - name: int_beneficiary_demographics_monthly
+    description: One row per member per file month for month-varying demographics (status/dual/buy-in).
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: beneficiary_demographics_monthly
+      tags: connector      
+
+  - name: int_orec_code
+    description: bringing in last non null orec code as CMS nulls these out after death
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: orec_code
+      tags: connector     
+
+  - name: int_beneficiary_xref_deduped
+    description: Dedupe beneficiary xref.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: beneficiary_xref_deduped
+      tags: connector      
+
+  - name: int_diagnosis_deduped
+    description: Dedupe diagnosis codes before pivot.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: diagnosis_deduped
+      tags: connector      
+
+  - name: int_diagnosis_pivot
+    description: >
+      Pivot of diagnosis from long (1 row/diagnosis) to wide (multiple diagnosis
+      per row).
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: diagnosis_pivot
+      tags: connector      
+
+  - name: int_dme_claim_adr
+    description: Applying adjustment logic for part B DME claims.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: dme_claim_adr
+      tags: connector      
+
+  - name: int_dme_claim_deduped
+    description: >
+      Final de-duplication, transformation logic, and mapping missing fields.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: dme_claim_deduped
+      tags: connector      
+
+  - name: int_enrollment
+    description: >
+      Prepare enrollment data, convert member months to spans if needed.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: enrollment
+      tags: connector     
+
+  - name: int_enrollment_stage
+    description: >
+      Prepare enrollment data, convert member months to spans if needed.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: enrollment_stage
+      tags: connector  
+
+  - name: int_institutional_claim_adr
+    description: Applying adjustment logic for part A institutional claims.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: institutional_claim_adr
+      tags: connector      
+
+  - name: int_institutional_claim_deduped
+    description: >
+      Final de-duplication, transformation logic, and mapping missing fields.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: institutional_claim_deduped
+      tags: connector      
+
+  - name: int_physician_claim_adr
+    description: Applying adjustment logic for part B physician claims.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: physician_claim_adr
+      tags: connector      
+
+  - name: int_physician_claim_deduped
+    description: >
+      Final de-duplication, transformation logic, and mapping missing fields.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: physician_claim_deduped
+      tags: connector      
+
+  - name: int_procedure_deduped
+    description: Dedupe procedures before pivot.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: procedure_deduped
+      tags: connector      
+
+  - name: int_procedure_pivot
+    description: >
+      Pivot of procedures from long (1 row/procedure) to wide (multiple 
+      procedure per row).
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: procedure_pivot
+      tags: connector    
+
+  - name: int_revenue_center_deduped
+    description: Dedupe revenue center detail.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: revenue_center_deduped
+      tags: connector            
+
+  ### staging
+  - name: stg_alr_1_1_retro
+    description: bringing in alr report
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_stg_input_layer{% else %}_stg_input_layer{%- endif -%}
+      materialized: table
+      tags: connector   
+
+  - name: stg_beneficiary_demographics
+    description: Staging model for beneficiary demographics (CCLF8).
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_stg_input_layer{% else %}_stg_input_layer{%- endif -%}
+      alias: beneficiary_demographics
+      tags: connector
+
+  - name: stg_beneficiary_xref
+    description: Staging model for beneficiary cross-reference (CCLF9).
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_stg_input_layer{% else %}_stg_input_layer{%- endif -%}
+      alias: beneficiary_xref
+      tags: connector      
+
+  - name: stg_parta_claims_header
+    description: Staging model for parta claims header (CCLF1).
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_stg_input_layer{% else %}_stg_input_layer{%- endif -%}
+      alias: parta_claims_header
+      tags: connector      
+
+  - name: stg_parta_claims_revenue_center_detail
+    description: Staging model for parta claims revenue center detail (CCLF2).
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_stg_input_layer{% else %}_stg_input_layer{%- endif -%}
+      alias: parta_claims_revenue_center_detail
+      tags: connector      
+
+  - name: stg_parta_diagnosis_code
+    description: >
+      Staging model for parta diagnosis codes used as ref for pivot 
+      transformation (CCLF4).
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_stg_input_layer{% else %}_stg_input_layer{%- endif -%}
+      alias: parta_diagnosis_code
+      tags: connector      
+
+  - name: stg_parta_procedure_code
+    description: >
+      Staging model for parta procedure codes used as ref for pivot 
+      transformation (CCLF3).
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_stg_input_layer{% else %}_stg_input_layer{%- endif -%}
+      alias: parta_procedure_code
+      tags: connector      
+
+  - name: stg_partb_dme
+    description: Staging model for partb dme (CCLF6).
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_stg_input_layer{% else %}_stg_input_layer{%- endif -%}
+      alias: partb_dme
+      tags: connector      
+
+  - name: stg_partb_physicians
+    description: Staging model for partb physicians (CCLF5).
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_stg_input_layer{% else %}_stg_input_layer{%- endif -%}
+      alias: partb_physicians
+      tags: connector      
+
+  - name: stg_alr_1_1
+    description: Staging model for alr 1-1
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_stg_input_layer{% else %}_stg_input_layer{%- endif -%}
+      alias: alr_1_1
+      tags: connector    
+
+  - name: stg_attribution
+    description: bringing in attribution source
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_input_layer{% else %}input_layer{%- endif -%}
+      materialized: table
+      tags: connector       
