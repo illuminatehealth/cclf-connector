@@ -44,6 +44,8 @@ with sort_adjusted_claims as (
         , row_num
         , natural_key
         , ingest_datetime
+        , file_cadence
+        , file_priority
     from {{ ref('int_physician_claim_adr') }}
 
 )
@@ -110,6 +112,8 @@ s.row_num = m.max_row_num_key
         , sort_adjusted_claims.file_date
 		    , sort_adjusted_claims.natural_key
         , sort_adjusted_claims.ingest_datetime
+        , sort_adjusted_claims.file_cadence
+        , sort_adjusted_claims.file_priority
     from sort_adjusted_claims
     where sort_adjusted_claims.row_num = 1
       /* a winning cancel means the claim version was voided: drop it so the set nets to zero */
@@ -319,6 +323,8 @@ s.row_num = m.max_row_num_key
         , file_name
         , file_date
         , ingest_datetime as ingest_datetime
+        , file_cadence as file_cadence
+        , file_priority as file_priority
         , r.natural_key
         , f.first_paid_date
     from remove_dupes r
@@ -489,6 +495,8 @@ s.row_num = m.max_row_num_key
         , cast(file_name as {{ dbt.type_string() }} ) as file_name
         , {{ try_to_cast_date('file_date', 'YYYY-MM-DD') }} as file_date
         , cast(ingest_datetime as date ) as ingest_datetime
+        , cast(file_cadence as {{ dbt.type_string() }}) as file_cadence
+        , cast(file_priority as {{ dbt.type_int() }}) as file_priority
     from mapping
 
 )
@@ -652,4 +660,6 @@ select
     , file_name
     , file_date
     , ingest_datetime
+    , file_cadence
+    , file_priority
 from add_data_types

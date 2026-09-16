@@ -53,6 +53,8 @@ with staged_data as (
         , file_name
         , file_date
         , ingest_datetime
+        , file_cadence
+        , file_priority
     from {{ ref('stg_partb_physicians') }}
 
 )
@@ -77,7 +79,7 @@ with staged_data as (
             , clm_line_num
             , clm_adjsmt_type_cd
             , clm_efctv_dt
-        order by file_date desc
+        order by file_priority asc, file_date desc, ingest_datetime desc, file_name desc
         ) as row_num
     from staged_data
 
@@ -139,6 +141,8 @@ with staged_data as (
         , file_name
         , file_date
         , ingest_datetime
+        , file_cadence
+        , file_priority
     from add_row_num
     where row_num = 1
 
@@ -189,6 +193,8 @@ with staged_data as (
         , dedupe.file_name
         , dedupe.file_date
         , dedupe.ingest_datetime
+        , dedupe.file_cadence
+        , dedupe.file_priority
     from dedupe
         left join beneficiary_xref
             on dedupe.bene_mbi_id = beneficiary_xref.prvs_num
@@ -303,10 +309,15 @@ with staged_data as (
                     WHEN 1 THEN 3 --adjustments
                     ELSE 4 
                  END
+                , file_priority ASC
                 , file_date DESC
+                , ingest_datetime DESC
+                , file_name DESC
                 , cur_clm_uniq_id DESC
         ) as row_num
         , ingest_datetime
+        , file_cadence
+        , file_priority
     from flag_adjusted_groups
 
 )
@@ -355,4 +366,6 @@ select
     , file_date
     , row_num
     , ingest_datetime
+    , file_cadence
+    , file_priority
 from sort_adjusted_claims

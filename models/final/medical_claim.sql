@@ -175,6 +175,8 @@ select
     , file_name
     , file_date
     , ingest_datetime
+    , file_cadence
+    , file_priority
     , cast({{ dbt.current_timestamp() }} as {{ dbt.type_timestamp() }}) as tuva_last_run
     , paid_source
     , clm_hipps_uncompd_care_amt clm_hipps_uncompd_care_amt

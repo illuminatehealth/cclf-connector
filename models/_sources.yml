@@ -17,18 +17,54 @@ sources:
       - name: partd_claims #CCLF7
       - name: alr_1_1_df #alr1-1
 
+  # Raw CCLF tables. Every table needs a `filename` column holding the CMS file name and
+  # an `ingest_datetime` column. Database, schema and identifiers are all overridable
+  # with vars (see README, "Source configuration").
   - name: lakehouse
-    database: "{{ target.database }}"
-    schema: "{{ target.schema }}_{{ var('team_cclf_raw_schema', 'team_cclf_raw') }}"
+    database: "{{ var('cclf_raw_database', target.database) }}"
+    schema: "{{ var('cclf_monthly_schema', target.schema ~ '_' ~ var('team_cclf_raw_schema', 'team_cclf_raw')) }}"
     tables:
-      - name: cclf_1 
-      - name: cclf_2       
-      - name: cclf_3 
-      - name: cclf_4 
-      - name: cclf_5 
-      - name: cclf_6 
-      - name: cclf_8 
-      - name: cclf_9 
-      - name: alr_1_1     
+      - name: cclf_1
+        identifier: "{{ var('cclf_1_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '1') }}"
+      - name: cclf_2
+        identifier: "{{ var('cclf_2_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '2') }}"
+      - name: cclf_3
+        identifier: "{{ var('cclf_3_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '3') }}"
+      - name: cclf_4
+        identifier: "{{ var('cclf_4_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '4') }}"
+      - name: cclf_5
+        identifier: "{{ var('cclf_5_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '5') }}"
+      - name: cclf_6
+        identifier: "{{ var('cclf_6_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '6') }}"
+      - name: cclf_8
+        identifier: "{{ var('cclf_8_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '8') }}"
+      - name: cclf_9
+        identifier: "{{ var('cclf_9_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '9') }}"
+      - name: alr_1_1
+        identifier: "{{ var('alr_identifier', 'alr_1_1') }}"
       - name: alr_1_1_retro
-      - name: mssp_attribution 
+        identifier: "{{ var('alr_retro_identifier', 'alr_1_1_retro') }}"
+      - name: mssp_attribution
+        identifier: "{{ var('custom_attribution_identifier', 'mssp_attribution') }}"
+
+  # Weekly CCLF tables. Only read when `cclf_weekly_enabled` is true.
+  - name: lakehouse_weekly
+    database: "{{ var('cclf_raw_database', target.database) }}"
+    schema: "{{ var('cclf_weekly_schema', var('cclf_monthly_schema', target.schema ~ '_' ~ var('team_cclf_raw_schema', 'team_cclf_raw'))) }}"
+    tables:
+      - name: cclf_1_weekly
+        identifier: "{{ var('cclf_1_weekly_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '1' ~ var('cclf_weekly_identifier_suffix', '_weekly')) }}"
+      - name: cclf_2_weekly
+        identifier: "{{ var('cclf_2_weekly_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '2' ~ var('cclf_weekly_identifier_suffix', '_weekly')) }}"
+      - name: cclf_3_weekly
+        identifier: "{{ var('cclf_3_weekly_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '3' ~ var('cclf_weekly_identifier_suffix', '_weekly')) }}"
+      - name: cclf_4_weekly
+        identifier: "{{ var('cclf_4_weekly_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '4' ~ var('cclf_weekly_identifier_suffix', '_weekly')) }}"
+      - name: cclf_5_weekly
+        identifier: "{{ var('cclf_5_weekly_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '5' ~ var('cclf_weekly_identifier_suffix', '_weekly')) }}"
+      - name: cclf_6_weekly
+        identifier: "{{ var('cclf_6_weekly_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '6' ~ var('cclf_weekly_identifier_suffix', '_weekly')) }}"
+      - name: cclf_8_weekly
+        identifier: "{{ var('cclf_8_weekly_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '8' ~ var('cclf_weekly_identifier_suffix', '_weekly')) }}"
+      - name: cclf_9_weekly
+        identifier: "{{ var('cclf_9_weekly_identifier', var('cclf_identifier_prefix', 'cclf_') ~ '9' ~ var('cclf_weekly_identifier_suffix', '_weekly')) }}"

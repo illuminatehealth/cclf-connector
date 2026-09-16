@@ -32,6 +32,8 @@ with sort_adjusted_claims as (
         , clm_mdcr_ip_pps_dsprprtnt_amt 
         , clm_oprtnl_dsprprtnt_amt
         , ingest_datetime
+        , file_cadence
+        , file_priority
     from {{ ref('int_institutional_claim_adr') }}
 
 )
@@ -107,6 +109,8 @@ s.row_num = m.max_row_num_key
         , clm_mdcr_ip_pps_dsprprtnt_amt 
         , clm_oprtnl_dsprprtnt_amt
         , sort_adjusted_claims.ingest_datetime
+        , sort_adjusted_claims.file_cadence
+        , sort_adjusted_claims.file_priority
     from sort_adjusted_claims
     where sort_adjusted_claims.row_num = 1
       /* a winning cancel means the claim version was voided: drop it so the set nets to zero */
@@ -265,6 +269,8 @@ s.row_num = m.max_row_num_key
         , procedure_pivot.procedure_date_24
         , procedure_pivot.procedure_date_25
         , filter_claims.ingest_datetime
+        , filter_claims.file_cadence
+        , filter_claims.file_priority
     from filter_claims
     inner join first_paid_date_cte p on filter_claims.natural_key = p.natural_key
     inner join max_row_num mrn on filter_claims.natural_key = mrn.natural_key
@@ -577,6 +583,8 @@ s.row_num = m.max_row_num_key
         , file_name
         , file_date
         , ingest_datetime as ingest_datetime
+        , file_cadence as file_cadence
+        , file_priority as file_priority
         , case
             when use_line_payments_flag = 1 then 'line payments' 
             when use_line_payments_flag = 0 and coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = 1 then 'header payments'
@@ -753,6 +761,8 @@ s.row_num = m.max_row_num_key
         , cast(file_name as {{ dbt.type_string() }} ) as file_name
         , {{ try_to_cast_date('file_date', 'YYYY-MM-DD') }} as file_date
         , cast(ingest_datetime as date ) as ingest_datetime
+        , cast(file_cadence as {{ dbt.type_string() }}) as file_cadence
+        , cast(file_priority as {{ dbt.type_int() }}) as file_priority
         , paid_source
         , clm_hipps_uncompd_care_amt clm_hipps_uncompd_care_amt
         , clm_mdcr_ip_pps_cptl_ime_amt clm_mdcr_ip_pps_cptl_ime_amt
@@ -920,6 +930,8 @@ select
     , file_name
     , file_date
     , ingest_datetime
+    , file_cadence
+    , file_priority
     , paid_source
     , clm_hipps_uncompd_care_amt clm_hipps_uncompd_care_amt
     , clm_mdcr_ip_pps_cptl_ime_amt clm_mdcr_ip_pps_cptl_ime_amt

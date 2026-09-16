@@ -9,6 +9,9 @@ with staged_data as (
         , bene_rrb_num
         , file_name
         , file_date
+        , ingest_datetime
+        , file_cadence
+        , file_priority
     from {{ ref('stg_beneficiary_xref') }}
 
 )
@@ -18,7 +21,7 @@ with staged_data as (
 
     select *, row_number() over (
         partition by prvs_num
-        order by file_date desc
+        order by file_priority asc, file_date desc, ingest_datetime desc, file_name desc
         ) as row_num
     from staged_data
 

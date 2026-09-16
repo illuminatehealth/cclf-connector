@@ -49,6 +49,8 @@ with staged_data as (
         , file_name
         , file_date
         , ingest_datetime
+        , file_cadence
+        , file_priority
     from {{ ref('stg_parta_claims_header') }}
 
 )
@@ -72,7 +74,7 @@ with staged_data as (
               cur_clm_uniq_id
             , clm_adjsmt_type_cd
             , clm_efctv_dt
-        order by file_date desc
+        order by file_priority asc, file_date desc, ingest_datetime desc, file_name desc
         ) as row_num
     from staged_data
 
@@ -132,6 +134,8 @@ with staged_data as (
         , file_name
         , file_date
         , ingest_datetime
+        , file_cadence
+        , file_priority
     from add_row_num
     where row_num = 1
 
@@ -173,6 +177,8 @@ with staged_data as (
         , dedupe.clm_mdcr_ip_pps_dsprprtnt_amt 
         , dedupe.clm_oprtnl_dsprprtnt_amt
         , dedupe.ingest_datetime
+        , dedupe.file_cadence
+        , dedupe.file_priority
     from dedupe
         left join beneficiary_xref
             on dedupe.bene_mbi_id = beneficiary_xref.prvs_num
@@ -264,6 +270,8 @@ with staged_data as (
         , clm_mdcr_ip_pps_dsprprtnt_amt 
         , clm_oprtnl_dsprprtnt_amt
         ,ingest_datetime
+        , file_cadence
+        , file_priority
         , row_number() over (
             partition by
                   clm_blg_prvdr_oscar_num
@@ -274,7 +282,10 @@ with staged_data as (
             order by
                   clm_efctv_dt desc
                 , clm_adjsmt_type_cd desc --2 (adjustment) first before cancellation and original
-                , file_date desc 
+                , file_priority asc
+                , file_date desc
+                , ingest_datetime desc
+                , file_name desc
                 , cur_clm_uniq_id desc
         ) as row_num
 
@@ -317,4 +328,6 @@ select
     , clm_mdcr_ip_pps_dsprprtnt_amt 
     , clm_oprtnl_dsprprtnt_amt
     , ingest_datetime
+    , file_cadence
+    , file_priority
 from sort_adjusted_claims

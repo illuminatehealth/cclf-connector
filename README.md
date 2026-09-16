@@ -10,63 +10,168 @@ Check out our [docs](https://thetuvaproject.com/) to learn about the project and
 
 This is Illuminate Health's maintained fork of the Tuva Medicare CCLF Connector.
 It runs in production for Medicare Shared Savings Program ACOs on Microsoft
-Fabric, and it carries changes to the related-claims adjustment logic that we
-have not yet sent upstream. Everything else follows the Tuva connector.
+Fabric. It carries changes to the related-claims adjustment logic, support for
+weekly CCLF releases, and eligibility built directly from ALR files, none of
+which are in the upstream connector yet. Everything else follows Tuva.
 
-### Adjustment logic changes
+### Related-claims adjustment logic
 
-CMS delivers several versions of a claim over time: the original, cancels
-(`CLM_ADJSMT_TYPE_CD = 1`) and replacements (`CLM_ADJSMT_TYPE_CD = 2`). The
-connector groups versions by the natural key CMS defines and resolves each
-group to one final claim. Three parts of that flow are different here, in
-`int_physician_claim_adr`, `int_dme_claim_adr`, `int_institutional_claim_adr`
-and the matching `*_claim_deduped` models.
+CMS describes related claims in the [CCLF Information Packet](https://www.cms.gov/files/document/cclf-information-packet.pdf)
+(Version 43, May 13, 2026). Section 5.1.2, "Natural Keys", on page 15 defines
+the key that groups every version of a claim: for Part A it is
+`CLM_BLG_PRVDR_OSCAR_NUM`, `CLM_FROM_DT`, `CLM_THRU_DT` and the most recent MBI;
+for Part B physician and DME it is `CLM_CNTL_NUM` and the most recent MBI. The
+connector adds `CLM_LINE_NUM` to the Part B key so that line detail survives.
+Section 5.2 on pages 17 and 18 lists the combinations a related set can
+contain, including "two original claims (and no other related claims)", and
+notes that "it is possible that there is more than one final action claim among
+a related set of claims." Section 5.3.1 on page 19 gives the expenditure
+method: flip the sign of every cancellation (`CLM_ADJSMT_TYPE_CD = 1`) and sum.
 
-**1. Dedupe on claim identity, not the full row.** The upstream connector
-removes duplicate deliveries by partitioning on every source column. CMS
-re-delivers claims across monthly files, and later file layouts blank columns
-such as the HIC number and BETOS code, so two copies of the same claim version
-no longer match and both survive. The dedupe here partitions on claim ID, line
-number, adjustment type and effective date, and keeps the latest delivery.
+The models involved are `int_physician_claim_adr`, `int_dme_claim_adr` and
+`int_institutional_claim_adr`, plus the matching `*_claim_deduped` models. This
+fork changes three things about how they resolve a related set.
 
-**2. Keep the winning version's own amounts.** Upstream sums paid and allowed
-amounts across every version in a natural-key group and attaches the sum to
-the latest version. With re-delivered copies in the group that double counts.
-Here the winning version carries only its own amounts. A replacement is a full
-restatement of the claim, so no summing is needed.
+**Duplicate deliveries are removed by claim identity.** CMS delivers the same
+claim more than once across monthly files, and later file layouts leave columns
+such as the HIC number and BETOS code blank. The upstream connector partitions
+on every source column when removing duplicates, so two copies of the same
+claim version stop matching as soon as one of those columns changes, and both
+survive into the adjustment logic. This fork partitions on the claim ID, line
+number, adjustment type and effective date, and keeps the most recently
+delivered copy.
 
-**3. Drop a winning cancel. Pass multiple originals through.** When the latest
-version in a group is a cancel and its replacement was billed under a different
-natural key, the group nets to zero and the cancel is dropped rather than kept
-as a negative row. When a group holds only original claims and no cancel or
-replacement, CMS treats each as a final-action claim, so the group key falls
-back to the claim ID and each original stays its own line.
+**The final version carries its own amounts.** The upstream connector sums paid
+and allowed amounts across every version in a related set and attaches the
+total to the latest version, which is the section 5.3.1 method applied at the
+line level. That double counts whenever a re-delivered copy is still in the
+set. A replacement claim is a full restatement, so this fork takes the paid and
+allowed amounts from the version that wins the sort and leaves the other
+versions out of the total.
+
+**Winning cancellations are dropped, and sets of originals stay separate.**
+When the latest version in a set is a cancellation and the replacement was
+billed under a different natural key, the set should net to zero. This fork
+drops the cancellation rather than keeping it as a negative line. When a set
+holds only original claims with no cancellation or replacement among them, CMS
+treats each one as a final-action claim, so the group key falls back to the
+claim ID and each original is kept as its own line.
+
+Three singular tests in `tests/` guard this behavior: one row per claim version
+in the ADR models, sets of originals are never collapsed, and no winning
+cancellation reaches the deduped models.
 
 ### What we found in our data
 
-We measured these against roughly ten years of CCLF history for one ACO
-before making the changes.
+We measured these changes against roughly ten years of CCLF history for one
+ACO before making them.
 
-- Groups that looked like "two originals on one natural key" were almost all
-  the same claim ID re-delivered in a second monthly file, identical on every
-  claim, service and dollar column. About 3 percent of Part B physician lines
-  were affected. Summing across those copies would have overstated paid
-  amounts by low single-digit percent in the older years.
-- Genuinely distinct claim IDs with different HCPCS on one natural key did not
-  occur on the Part B side. A few thousand appeared on Part A over ten years
-  with differing DRGs.
-- Winning cancels with no replacement on the same key were about one percent
-  of institutional groups. Keeping them as negative rows understated
+- Nearly every related set that looked like two originals on one natural key
+  turned out to be the same claim ID delivered again in a later monthly file,
+  identical on every claim, service and dollar column. About 3 percent of Part
+  B physician lines were affected, and summing across those copies would have
+  overstated paid amounts by a low single-digit percentage in older years.
+- We did not find any Part B sets with two distinct claim IDs and different
+  HCPCS codes on one natural key. A few thousand such sets appeared on Part A
+  over ten years, with differing DRGs.
+- Winning cancellations with no replacement on the same key made up about one
+  percent of institutional sets. Keeping them as negative lines understated
   institutional paid amounts by roughly one percent.
 
-Three singular tests in `tests/` guard the new behavior: one row per claim
-version in the ADR models, original-only groups are never collapsed, and no
-winning cancel reaches the deduped models.
+### Monthly and weekly CCLF releases
+
+CMS sends ACOs a monthly CCLF release and, on request, weekly claims releases
+that arrive between the monthly ones. Weekly files let you see recent claims
+sooner, but a weekly release for a month is superseded once the monthly
+release for that month arrives. This fork treats the eight file types (CCLF 1,
+2, 3, 4, 5, 6, 8 and 9) that share a cadence and release date as one release,
+and selects releases with these rules:
+
+1. A release is eligible only when all eight file types are present.
+2. For each performance year and month, a complete monthly release is used.
+3. If no complete monthly release exists for that month, complete weekly
+   releases are used instead.
+
+The selected cadence is carried through every model as `file_cadence`
+(`monthly` or `weekly`) with a matching `file_priority` (1 or 2), and the
+priority is the first sort key wherever the connector picks between versions of
+a row. `int_cclf_file_manifest` lists every file found, and
+`int_selected_cclf_file_manifest` lists the releases that were chosen. Tests in
+`tests/` check that selected releases are complete and that a weekly release
+never outranks a complete monthly one.
+
+Weekly support is off by default. To turn it on, load the weekly files into
+their own tables, then set in `dbt_project.yml`:
+
+```yaml
+vars:
+  cclf_weekly_enabled: true
+  cclf_weekly_schema: <schema holding the weekly tables>
+  cclf_weekly_identifier_suffix: _weekly
+```
+
+With weekly support off the connector still reads only complete monthly
+releases, so a partial delivery waits until the rest of its files arrive.
+
+Every raw CCLF table must have a `filename` column holding the CMS file name
+(for example `P.A1234.ACO.ZC1Y24.D240215.T1234567`) and an `ingest_datetime`
+column. The performance year and release date are read from the file name.
+
+### Source configuration
+
+Raw table locations are set with dbt variables so the same models run against
+different layouts without editing the project.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `cclf_raw_database` | target database | Database or lakehouse holding the raw tables |
+| `cclf_monthly_schema` | `<target schema>_team_cclf_raw` | Schema holding the monthly CCLF tables and ALR inputs |
+| `cclf_weekly_schema` | same as monthly | Schema holding the weekly CCLF tables |
+| `cclf_identifier_prefix` | `cclf_` | Prefix used to build the CCLF 1 to 9 table names |
+| `cclf_weekly_identifier_suffix` | `_weekly` | Suffix added to the weekly table names |
+| `cclf_weekly_enabled` | `false` | Read weekly releases |
+| `alr_identifier` | `alr_1_1` | Prospective ALR 1-1 table |
+| `alr_retro_identifier` | `alr_1_1_retro` | Retrospective ALR 1-1 table |
+| `custom_attribution_identifier` | `mssp_attribution` | Provider attribution roster |
+
+Any single table can be overridden with `cclf_<n>_identifier` or
+`cclf_<n>_weekly_identifier`, which take precedence over the prefix and suffix.
+
+### Eligibility and attribution from ALR files
+
+The upstream connector expects you to supply an `enrollment` table with
+enrollment spans or member months, or to run Tuva's separate `cms_alr_connector`
+package and set `cms_alr_connector: true` so eligibility is built from its
+output. This fork reads the Assignment List Report files directly and builds
+eligibility inside the connector:
+
+- `stg_alr_1_1` and `stg_alr_1_1_retro` stage the prospective and retrospective
+  ALR 1-1 tables. When more than one ALR file exists for a performance year,
+  the annual file is preferred over the quarterly ones, and later quarters over
+  earlier ones. `int_alr_1_1_union` combines the two.
+- `int_enrollment_stage` builds member months by taking each monthly CCLF8
+  demographics snapshot and keeping the beneficiaries the ALR marks as assigned
+  and not excluded for that performance year. Months after a beneficiary's
+  death are dropped, and where several CCLF8 files cover a month, the file from
+  the same year as the ALR is preferred.
+- `eligibility` joins those months to CCLF8 demographics, with Medicare status,
+  dual status and buy-in taken month by month from
+  `int_beneficiary_demographics_monthly`. `int_orec_code` carries the last
+  non-null original entitlement reason forward, because CCLF8 stops sending it
+  after a beneficiary dies and the CMS-HCC model needs it.
+- `provider_attribution` comes from an attribution roster you supply at member
+  and year grain (`custom_attribution_identifier`) and is expanded to months
+  using the Tuva calendar, with historical MBIs mapped to the current MBI
+  through CCLF9.
+
+Beneficiary MBIs are normalized through CCLF9 in every one of these paths, in
+line with section 5.1.1 of the Information Packet.
 
 ### Fabric support
 
 The `macros/` folder carries Fabric overrides for `cast_numeric`,
 `create_table_as` and `quote_column`. Other adapters use the Tuva defaults.
+Microsoft Fabric is the platform this fork is tested on.
 <br/><br/>
 
 ## 🧰 What does this repo do?

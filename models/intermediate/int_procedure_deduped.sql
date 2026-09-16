@@ -15,6 +15,9 @@ with staged_data as (
         , dgns_prcdr_icd_ind
         , file_name
         , file_date
+        , ingest_datetime
+        , file_cadence
+        , file_priority
     from {{ ref('stg_parta_procedure_code') }}
 
 )
@@ -36,7 +39,7 @@ with staged_data as (
             , clm_from_dt
             , clm_thru_dt
             , dgns_prcdr_icd_ind
-        order by file_date desc
+        order by file_priority asc, file_date desc, ingest_datetime desc, file_name desc
         ) as row_num
     from staged_data
     where bene_mbi_id is not null /* added to prevent dupes during pivot */

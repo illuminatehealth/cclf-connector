@@ -25,6 +25,8 @@ select
     , clm_line_alowd_chrg_amt
     , clm_disp_cd
     , filename as file_name
-    , cast({{ dbt.concat(["'20'", "substring(filename, 21, 2)", "'-'", "substring(filename, 23, 2)", "'-'", "substring(filename, 25, 2)"]) }} as date)  AS file_date
+    , {{ cclf_file_date('filename') }} as file_date
     , ingest_datetime
-from {{ source('lakehouse','cclf_6') }}
+    , file_cadence
+    , file_priority
+from {{ ref('int_selected_cclf_6') }}

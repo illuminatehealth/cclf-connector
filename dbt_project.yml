@@ -8,6 +8,10 @@ vars:
 
   claims_enabled: true
 
+  # Read weekly CCLF releases alongside monthly ones. See README, "Monthly and weekly
+  # CCLF releases". Requires the lakehouse_weekly source tables.
+  cclf_weekly_enabled: false
+
 model-paths: ["models"]
 analysis-paths: ["analyses"]
 test-paths: ["tests"]
