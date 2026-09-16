@@ -6,6 +6,69 @@
 Check out our [docs](https://thetuvaproject.com/) to learn about the project and how you can use it.
 <br/><br/>
 
+## 🩹 What is patched in this fork?
+
+This is Illuminate Health's maintained fork of the Tuva Medicare CCLF Connector.
+It runs in production for Medicare Shared Savings Program ACOs on Microsoft
+Fabric, and it carries changes to the related-claims adjustment logic that we
+have not yet sent upstream. Everything else follows the Tuva connector.
+
+### Adjustment logic changes
+
+CMS delivers several versions of a claim over time: the original, cancels
+(`CLM_ADJSMT_TYPE_CD = 1`) and replacements (`CLM_ADJSMT_TYPE_CD = 2`). The
+connector groups versions by the natural key CMS defines and resolves each
+group to one final claim. Three parts of that flow are different here, in
+`int_physician_claim_adr`, `int_dme_claim_adr`, `int_institutional_claim_adr`
+and the matching `*_claim_deduped` models.
+
+**1. Dedupe on claim identity, not the full row.** The upstream connector
+removes duplicate deliveries by partitioning on every source column. CMS
+re-delivers claims across monthly files, and later file layouts blank columns
+such as the HIC number and BETOS code, so two copies of the same claim version
+no longer match and both survive. The dedupe here partitions on claim ID, line
+number, adjustment type and effective date, and keeps the latest delivery.
+
+**2. Keep the winning version's own amounts.** Upstream sums paid and allowed
+amounts across every version in a natural-key group and attaches the sum to
+the latest version. With re-delivered copies in the group that double counts.
+Here the winning version carries only its own amounts. A replacement is a full
+restatement of the claim, so no summing is needed.
+
+**3. Drop a winning cancel. Pass multiple originals through.** When the latest
+version in a group is a cancel and its replacement was billed under a different
+natural key, the group nets to zero and the cancel is dropped rather than kept
+as a negative row. When a group holds only original claims and no cancel or
+replacement, CMS treats each as a final-action claim, so the group key falls
+back to the claim ID and each original stays its own line.
+
+### What we found in our data
+
+We measured these against roughly ten years of CCLF history for one ACO
+before making the changes.
+
+- Groups that looked like "two originals on one natural key" were almost all
+  the same claim ID re-delivered in a second monthly file, identical on every
+  claim, service and dollar column. About 3 percent of Part B physician lines
+  were affected. Summing across those copies would have overstated paid
+  amounts by low single-digit percent in the older years.
+- Genuinely distinct claim IDs with different HCPCS on one natural key did not
+  occur on the Part B side. A few thousand appeared on Part A over ten years
+  with differing DRGs.
+- Winning cancels with no replacement on the same key were about one percent
+  of institutional groups. Keeping them as negative rows understated
+  institutional paid amounts by roughly one percent.
+
+Three singular tests in `tests/` guard the new behavior: one row per claim
+version in the ADR models, original-only groups are never collapsed, and no
+winning cancel reaches the deduped models.
+
+### Fabric support
+
+The `macros/` folder carries Fabric overrides for `cast_numeric`,
+`create_table_as` and `quote_column`. Other adapters use the Tuva defaults.
+<br/><br/>
+
 ## 🧰 What does this repo do?
 
 The Medicare CCLF Connector is a dbt project that maps raw Medicare CCLF claims data to the Tuva Input Layer, which is the first step in running the Tuva Project.  This connector expects your CCLF data to be organized into the tables outlined in this [CMS data dictionary](https://www.cms.gov/files/document/cclf-information-packet.pdf), which is the most recent format CMS uses to distribute CCLF files.
@@ -16,6 +79,7 @@ The Medicare CCLF Connector is a dbt project that maps raw Medicare CCLF claims 
 - BigQuery
 - Redshift
 - Snowflake
+- Microsoft Fabric
 <br/><br/>  
 
 ## ✅ Quickstart Guide

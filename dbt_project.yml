@@ -2,7 +2,7 @@ name: 'medicare_cclf_connector'
 version: '0.1.2'
 config-version: 2
 
-profile: illuminate_fabric_dev
+profile: default
 
 vars:
 

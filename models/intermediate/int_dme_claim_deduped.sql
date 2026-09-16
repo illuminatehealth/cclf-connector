@@ -53,6 +53,8 @@ with sort_adjusted_claims as (
         , sort_adjusted_claims.ingest_datetime
     from sort_adjusted_claims
     where sort_adjusted_claims.row_num = 1
+      /* a winning cancel means the claim version was voided: drop it so the set nets to zero */
+      and (sort_adjusted_claims.clm_adjsmt_type_cd is null or sort_adjusted_claims.clm_adjsmt_type_cd <> '1')
 
 
 )

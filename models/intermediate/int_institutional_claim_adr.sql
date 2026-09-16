@@ -60,57 +60,18 @@ with staged_data as (
 )
 
 /*
-    dedupe full rows that may appear in multiple files
+    dedupe re-delivered copies of the same claim version. CMS re-delivers claims across
+    monthly files and later layouts blank columns such as HIC and BETOS, so a full-row
+    partition cannot collapse them. Claim identity is the claim ID, line, adjustment
+    type and effective date; the latest delivery wins.
 */
 , add_row_num as (
 
     select *, row_number() over (
         partition by
               cur_clm_uniq_id
-            , prvdr_oscar_num
-            , bene_mbi_id
-            , bene_hic_num
-            , clm_type_cd
-            , clm_from_dt
-            , clm_thru_dt
-            , clm_bill_fac_type_cd
-            , clm_bill_clsfctn_cd
-            , prncpl_dgns_cd
-            , admtg_dgns_cd
-            , clm_mdcr_npmt_rsn_cd
-            , clm_pmt_amt
-            , clm_nch_prmry_pyr_cd
-            , prvdr_fac_fips_st_cd
-            , bene_ptnt_stus_cd
-            , dgns_drg_cd
-            , clm_op_srvc_type_cd
-            , fac_prvdr_npi_num
-            , oprtg_prvdr_npi_num
-            , atndg_prvdr_npi_num
-            , othr_prvdr_npi_num
             , clm_adjsmt_type_cd
             , clm_efctv_dt
-            , clm_idr_ld_dt
-            , bene_eqtbl_bic_hicn_num
-            , clm_admsn_type_cd
-            , clm_admsn_src_cd
-            , clm_bill_freq_cd
-            , clm_query_cd
-            , dgns_prcdr_icd_ind
-            , clm_mdcr_instnl_tot_chrg_amt
-            , clm_mdcr_ip_pps_cptl_ime_amt
-            , clm_oprtnl_ime_amt
-            , clm_mdcr_ip_pps_dsprprtnt_amt
-            , clm_hipps_uncompd_care_amt
-            , clm_oprtnl_dsprprtnt_amt
-            , clm_blg_prvdr_oscar_num
-            , clm_blg_prvdr_npi_num
-            , clm_oprtg_prvdr_npi_num
-            , clm_atndg_prvdr_npi_num
-            , clm_othr_prvdr_npi_num
-            , clm_cntl_num
-            , clm_org_cntl_num
-            , clm_cntrctr_num
         order by file_date desc
         ) as row_num
     from staged_data
@@ -229,6 +190,22 @@ with staged_data as (
 )
 
 /*
+    flag natural-key groups that contain a cancel (1) or replacement (2). Groups made up
+    only of originals are distinct final-action claims and must not be collapsed, so the
+    adjustment key falls back to the claim ID for those groups.
+*/
+, flag_adjusted_groups as (
+
+    select
+          *
+        , max(case when clm_adjsmt_type_cd in ('1', '2') then 1 else 0 end) over (
+            partition by clm_blg_prvdr_oscar_num, clm_from_dt, clm_thru_dt, current_bene_mbi_id
+          ) as group_has_adjustment
+    from filtered_transactions
+
+)
+
+/*
     1) apply adjustment logic by grouping part A claims by their natural keys:
      - CLM_BLG_PRVDR_OSCAR_NUM
      - CLM_FROM_DT
@@ -247,6 +224,7 @@ with staged_data as (
     select
             DENSE_RANK() OVER (
                 ORDER BY clm_blg_prvdr_oscar_num, clm_from_dt, clm_thru_dt, current_bene_mbi_id
+                , case when group_has_adjustment = 1 then '' else cast(cur_clm_uniq_id as {{ dbt.type_string() }}) end
             ) AS natural_key
         ,  cur_clm_uniq_id
         ,  prvdr_oscar_num
@@ -292,6 +270,7 @@ with staged_data as (
                 , clm_from_dt
                 , clm_thru_dt
                 , current_bene_mbi_id
+                , case when group_has_adjustment = 1 then '' else cast(cur_clm_uniq_id as {{ dbt.type_string() }}) end
             order by
                   clm_efctv_dt desc
                 , clm_adjsmt_type_cd desc --2 (adjustment) first before cancellation and original
@@ -299,7 +278,7 @@ with staged_data as (
                 , cur_clm_uniq_id desc
         ) as row_num
 
-    from filtered_transactions
+    from flag_adjusted_groups
 
 )
 
