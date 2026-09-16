@@ -39,5 +39,4 @@ from year_grain e
 inner join cal m on e.year_nbr = m.year_nbr
 cross join {{ ref('metadata_fields') }} met
 left join {{ ref('int_beneficiary_xref_deduped') }} xref on e.member_id = xref.prvs_num
-where e.year_nbr <2025
 

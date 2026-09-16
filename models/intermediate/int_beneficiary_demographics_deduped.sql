@@ -35,6 +35,8 @@ with staged_data as (
         , file_name
         , file_date
         , ingest_datetime
+        , file_cadence
+        , file_priority
     from {{ ref('stg_beneficiary_demographics') }}
 
 )
@@ -84,6 +86,8 @@ with staged_data as (
         , staged_data.file_name
         , staged_data.file_date
         , staged_data.ingest_datetime
+        , staged_data.file_cadence
+        , staged_data.file_priority
     from staged_data
         left join beneficiary_xref
             on staged_data.bene_mbi_id = beneficiary_xref.prvs_num
@@ -128,9 +132,11 @@ with staged_data as (
         , file_name
         , file_date
         , ingest_datetime
+        , file_cadence
+        , file_priority
         , row_number() over (
             partition by current_bene_mbi_id
-            order by file_date desc
+            order by file_priority asc, file_date desc, ingest_datetime desc, file_name desc
           ) as row_num
     from add_mbi_xref
 
@@ -170,6 +176,8 @@ select
     , file_name
     , file_date
     , ingest_datetime
+    , file_cadence
+    , file_priority
     , row_num
 from get_latest_mbi
 /* commenting out the row_num to include all rows (with joined xref mbi) for pulling OREC code from last non null value*/

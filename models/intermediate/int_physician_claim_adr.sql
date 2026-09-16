@@ -53,6 +53,8 @@ with staged_data as (
         , file_name
         , file_date
         , ingest_datetime
+        , file_cadence
+        , file_priority
     from {{ ref('stg_partb_physicians') }}
 
 )
@@ -63,61 +65,21 @@ with staged_data as (
 
 )
 
-/* dedupe full rows that may appear in multiple files */
+/*
+    dedupe re-delivered copies of the same claim version. CMS re-delivers claims across
+    monthly files and later layouts blank columns such as HIC and BETOS, so a full-row
+    partition cannot collapse them. Claim identity is the claim ID, line, adjustment
+    type and effective date; the latest delivery wins.
+*/
 , add_row_num as (
 
     select *, row_number() over (
         partition by
               cur_clm_uniq_id
             , clm_line_num
-            , bene_mbi_id
-            , bene_hic_num
-            , clm_type_cd
-            , clm_from_dt
-            , clm_thru_dt
-            , rndrg_prvdr_type_cd
-            , rndrg_prvdr_fips_st_cd
-            , clm_prvdr_spclty_cd
-            , clm_fed_type_srvc_cd
-            , clm_pos_cd
-            , clm_line_from_dt
-            , clm_line_thru_dt
-            , clm_line_hcpcs_cd
-            , clm_line_cvrd_pd_amt
-            , clm_line_prmry_pyr_cd
-            , clm_line_dgns_cd
-            , clm_rndrg_prvdr_tax_num
-            , rndrg_prvdr_npi_num
-            , clm_carr_pmt_dnl_cd
-            , clm_prcsg_ind_cd
             , clm_adjsmt_type_cd
             , clm_efctv_dt
-            , clm_idr_ld_dt
-            , clm_cntl_num
-            , bene_eqtbl_bic_hicn_num
-            , clm_line_alowd_chrg_amt
-            , clm_line_srvc_unit_qty
-            , hcpcs_1_mdfr_cd
-            , hcpcs_2_mdfr_cd
-            , hcpcs_3_mdfr_cd
-            , hcpcs_4_mdfr_cd
-            , hcpcs_5_mdfr_cd
-            , clm_disp_cd
-            , clm_dgns_1_cd
-            , clm_dgns_2_cd
-            , clm_dgns_3_cd
-            , clm_dgns_4_cd
-            , clm_dgns_5_cd
-            , clm_dgns_6_cd
-            , clm_dgns_7_cd
-            , clm_dgns_8_cd
-            , dgns_prcdr_icd_ind
-            , clm_dgns_9_cd
-            , clm_dgns_10_cd
-            , clm_dgns_11_cd
-            , clm_dgns_12_cd
-            , hcpcs_betos_cd
-        order by file_date desc
+        order by file_priority asc, file_date desc, ingest_datetime desc, file_name desc
         ) as row_num
     from staged_data
 
@@ -179,6 +141,8 @@ with staged_data as (
         , file_name
         , file_date
         , ingest_datetime
+        , file_cadence
+        , file_priority
     from add_row_num
     where row_num = 1
 
@@ -229,6 +193,8 @@ with staged_data as (
         , dedupe.file_name
         , dedupe.file_date
         , dedupe.ingest_datetime
+        , dedupe.file_cadence
+        , dedupe.file_priority
     from dedupe
         left join beneficiary_xref
             on dedupe.bene_mbi_id = beneficiary_xref.prvs_num
@@ -242,6 +208,22 @@ with staged_data as (
     from add_current_mbi
     where try_cast(clm_efctv_dt as date) >= cast({{ dbt.concat(["cast(year(coalesce(try_cast(clm_thru_dt as date), try_cast(clm_line_thru_dt as date))) as varchar)", "'-01-01'"]) }} as date)
       and try_cast(clm_efctv_dt as date) < cast({{ dbt.concat(["cast(year(coalesce(try_cast(clm_thru_dt as date), try_cast(clm_line_thru_dt as date))) + 1 as varchar)", "'-04-01'"]) }} as date)
+
+)
+
+/*
+    flag natural-key groups that contain a cancel (1) or replacement (2). Groups made up
+    only of originals are distinct final-action claims and must not be collapsed, so the
+    adjustment key falls back to the claim ID for those groups.
+*/
+, flag_adjusted_groups as (
+
+    select
+          *
+        , max(case when clm_adjsmt_type_cd in ('1', '2') then 1 else 0 end) over (
+            partition by clm_cntl_num, clm_line_num, current_bene_mbi_id
+          ) as group_has_adjustment
+    from filtered_transactions
 
 )
 
@@ -265,6 +247,7 @@ with staged_data as (
         ORDER BY  clm_cntl_num
                 , clm_line_num
                 , current_bene_mbi_id
+                , case when group_has_adjustment = 1 then '' else cast(cur_clm_uniq_id as {{ dbt.type_string() }}) end
     ) AS natural_key
         , cur_clm_uniq_id
         , clm_line_num
@@ -317,6 +300,7 @@ with staged_data as (
                   clm_cntl_num
                 , clm_line_num
                 , current_bene_mbi_id
+                , case when group_has_adjustment = 1 then '' else cast(cur_clm_uniq_id as {{ dbt.type_string() }}) end
             ORDER BY
                 clm_efctv_dt DESC
                 , CASE clm_adjsmt_type_cd
@@ -325,11 +309,16 @@ with staged_data as (
                     WHEN 1 THEN 3 --adjustments
                     ELSE 4 
                  END
+                , file_priority ASC
                 , file_date DESC
+                , ingest_datetime DESC
+                , file_name DESC
                 , cur_clm_uniq_id DESC
         ) as row_num
         , ingest_datetime
-    from filtered_transactions
+        , file_cadence
+        , file_priority
+    from flag_adjusted_groups
 
 )
 
@@ -377,4 +366,6 @@ select
     , file_date
     , row_num
     , ingest_datetime
+    , file_cadence
+    , file_priority
 from sort_adjusted_claims

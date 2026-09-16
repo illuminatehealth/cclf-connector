@@ -2,11 +2,22 @@ name: 'medicare_cclf_connector'
 version: '0.1.2'
 config-version: 2
 
-profile: illuminate_fabric_dev
+profile: default
 
 vars:
 
   claims_enabled: true
+
+  # Read weekly CCLF releases alongside monthly ones. See README, "Monthly and weekly
+  # CCLF releases". Requires the lakehouse_weekly source tables.
+  cclf_weekly_enabled: false
+
+  # Provider attribution roster (see README, "Eligibility and attribution from ALR files").
+  # Set false if you have no roster table; provider_attribution is then empty.
+  custom_attribution_enabled: true
+
+  # Drop claims for beneficiaries who declined data sharing, using the BNEX file.
+  bnex_enabled: false
 
 model-paths: ["models"]
 analysis-paths: ["analyses"]

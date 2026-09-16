@@ -25,6 +25,9 @@ with staged_data as (
         , clm_rev_apc_hipps_cd
         , file_name
         , file_date
+        , ingest_datetime
+        , file_cadence
+        , file_priority
     from {{ ref('stg_parta_claims_revenue_center_detail') }}
 
 )
@@ -73,6 +76,9 @@ with staged_data as (
         , staged_data.clm_rev_apc_hipps_cd
         , staged_data.file_name
         , staged_data.file_date
+        , staged_data.ingest_datetime
+        , staged_data.file_cadence
+        , staged_data.file_priority
     from staged_data
         inner join allowed_header_versions
             on staged_data.cur_clm_uniq_id = allowed_header_versions.cur_clm_uniq_id
@@ -89,7 +95,7 @@ with staged_data as (
         partition by
               cur_clm_uniq_id
             , clm_line_num
-        order by file_date desc
+        order by file_priority asc, file_date desc, ingest_datetime desc, file_name desc
         ) as row_num
     from add_current_mbi
 

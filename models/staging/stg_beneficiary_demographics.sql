@@ -31,7 +31,9 @@ select
     , geo_zip5_cd
     , geo_zip4_cd
     , filename as file_name
-    , cast({{ dbt.concat(["'20'", "substring(filename, 21, 2)", "'-'", "substring(filename, 23, 2)", "'-'", "substring(filename, 25, 2)"]) }} as date)  AS file_date
-    , cast(SUBSTRING(filename, 17, 2) as {{ dbt.type_int() }}) + 2000 as file_year
+    , {{ cclf_file_date('filename') }} as file_date
+    , {{ cclf_performance_year('filename') }} as file_year
     , ingest_datetime
-from {{ source('lakehouse','cclf_8') }}
+    , file_cadence
+    , file_priority
+from {{ ref('int_selected_cclf_8') }}

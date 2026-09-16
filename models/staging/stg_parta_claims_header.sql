@@ -52,7 +52,9 @@ with cleaned_source as (
         , {{ clean_string('clm_cntrctr_num') }} as clm_cntrctr_num
         , {{ clean_string('filename') }} as filename
         , ingest_datetime
-    from {{ source('lakehouse','cclf_1') }}
+        , file_cadence
+        , file_priority
+    from {{ ref('int_selected_cclf_1') }}
 
 )
 
@@ -120,8 +122,10 @@ select
     , s.clm_org_cntl_num
     , s.clm_cntrctr_num
     , s.filename as file_name
-    , cast({{ dbt.concat(["'20'", "substring(s.filename, 21, 2)", "'-'", "substring(s.filename, 23, 2)", "'-'", "substring(s.filename, 25, 2)"]) }} as date) as file_date
+    , {{ cclf_file_date('s.filename') }} as file_date
     , s.ingest_datetime
+    , s.file_cadence
+    , s.file_priority
 from cleaned_source s
 left join cte c on s.cur_clm_uniq_id = c.cur_clm_uniq_id
     and c.row_num = 1

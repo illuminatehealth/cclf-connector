@@ -1,0 +1,588 @@
+version: 2
+
+# Column contracts for the selected CCLF models. They give dbt_utils.union_relations a
+# single set of types when monthly and weekly files are unioned, and they are enforced
+# only on Fabric with weekly releases enabled. Adjust the types if your raw tables differ.
+
+models:
+  - name: int_selected_cclf_1
+    description: Selected CCLF1 records across monthly and weekly files.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: selected_cclf_1
+      tags: connector
+      contract:
+        enforced: "{{ target.type == 'fabric' and var('cclf_weekly_enabled', false) }}"
+        alias_types: false
+    columns:
+      - name: filename
+        data_type: varchar(128)
+      - name: cur_clm_uniq_id
+        data_type: varchar(13)
+      - name: prvdr_oscar_num
+        data_type: varchar(6)
+      - name: bene_mbi_id
+        data_type: varchar(11)
+      - name: bene_hic_num
+        data_type: varchar(11)
+      - name: clm_type_cd
+        data_type: varchar(2)
+      - name: clm_from_dt
+        data_type: varchar(10)
+      - name: clm_thru_dt
+        data_type: varchar(10)
+      - name: clm_bill_fac_type_cd
+        data_type: varchar(1)
+      - name: clm_bill_clsfctn_cd
+        data_type: varchar(1)
+      - name: prncpl_dgns_cd
+        data_type: varchar(7)
+      - name: admtg_dgns_cd
+        data_type: varchar(7)
+      - name: clm_mdcr_npmt_rsn_cd
+        data_type: varchar(2)
+      - name: clm_pmt_amt
+        data_type: varchar(17)
+      - name: clm_nch_prmry_pyr_cd
+        data_type: varchar(1)
+      - name: prvdr_fac_fips_st_cd
+        data_type: varchar(2)
+      - name: bene_ptnt_stus_cd
+        data_type: varchar(2)
+      - name: dgns_drg_cd
+        data_type: varchar(4)
+      - name: clm_op_srvc_type_cd
+        data_type: varchar(1)
+      - name: fac_prvdr_npi_num
+        data_type: varchar(10)
+      - name: oprtg_prvdr_npi_num
+        data_type: varchar(10)
+      - name: atndg_prvdr_npi_num
+        data_type: varchar(10)
+      - name: othr_prvdr_npi_num
+        data_type: varchar(10)
+      - name: clm_adjsmt_type_cd
+        data_type: varchar(2)
+      - name: clm_efctv_dt
+        data_type: varchar(10)
+      - name: clm_idr_ld_dt
+        data_type: varchar(10)
+      - name: bene_eqtbl_bic_hicn_num
+        data_type: varchar(11)
+      - name: clm_admsn_type_cd
+        data_type: varchar(2)
+      - name: clm_admsn_src_cd
+        data_type: varchar(2)
+      - name: clm_bill_freq_cd
+        data_type: varchar(1)
+      - name: clm_query_cd
+        data_type: varchar(1)
+      - name: dgns_prcdr_icd_ind
+        data_type: varchar(1)
+      - name: clm_mdcr_instnl_tot_chrg_amt
+        data_type: varchar(15)
+      - name: clm_mdcr_ip_pps_cptl_ime_amt
+        data_type: varchar(15)
+      - name: clm_oprtnl_ime_amt
+        data_type: varchar(22)
+      - name: clm_mdcr_ip_pps_dsprprtnt_amt
+        data_type: varchar(15)
+      - name: clm_hipps_uncompd_care_amt
+        data_type: varchar(15)
+      - name: clm_oprtnl_dsprprtnt_amt
+        data_type: varchar(22)
+      - name: clm_blg_prvdr_oscar_num
+        data_type: varchar(20)
+      - name: clm_blg_prvdr_npi_num
+        data_type: varchar(10)
+      - name: clm_oprtg_prvdr_npi_num
+        data_type: varchar(10)
+      - name: clm_atndg_prvdr_npi_num
+        data_type: varchar(10)
+      - name: clm_othr_prvdr_npi_num
+        data_type: varchar(10)
+      - name: clm_cntl_num
+        data_type: varchar(40)
+      - name: clm_org_cntl_num
+        data_type: varchar(40)
+      - name: clm_cntrctr_num
+        data_type: varchar(5)
+      - name: ingest_datetime
+        data_type: datetime2(6)
+      - name: file_cadence
+        data_type: varchar(8)
+      - name: file_priority
+        data_type: int
+
+  - name: int_selected_cclf_2
+    description: Selected CCLF2 records across monthly and weekly files.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: selected_cclf_2
+      tags: connector
+      contract:
+        enforced: "{{ target.type == 'fabric' and var('cclf_weekly_enabled', false) }}"
+        alias_types: false
+    columns:
+      - name: filename
+        data_type: varchar(128)
+      - name: cur_clm_uniq_id
+        data_type: varchar(13)
+      - name: clm_line_num
+        data_type: varchar(10)
+      - name: bene_mbi_id
+        data_type: varchar(11)
+      - name: bene_hic_num
+        data_type: varchar(11)
+      - name: clm_type_cd
+        data_type: varchar(2)
+      - name: clm_line_from_dt
+        data_type: varchar(10)
+      - name: clm_line_thru_dt
+        data_type: varchar(10)
+      - name: clm_line_prod_rev_ctr_cd
+        data_type: varchar(4)
+      - name: clm_line_instnl_rev_ctr_dt
+        data_type: varchar(10)
+      - name: clm_line_hcpcs_cd
+        data_type: varchar(5)
+      - name: bene_eqtbl_bic_hicn_num
+        data_type: varchar(11)
+      - name: prvdr_oscar_num
+        data_type: varchar(6)
+      - name: clm_from_dt
+        data_type: varchar(10)
+      - name: clm_thru_dt
+        data_type: varchar(10)
+      - name: clm_line_srvc_unit_qty
+        data_type: varchar(24)
+      - name: clm_line_cvrd_pd_amt
+        data_type: varchar(17)
+      - name: hcpcs_1_mdfr_cd
+        data_type: varchar(2)
+      - name: hcpcs_2_mdfr_cd
+        data_type: varchar(2)
+      - name: hcpcs_3_mdfr_cd
+        data_type: varchar(2)
+      - name: hcpcs_4_mdfr_cd
+        data_type: varchar(2)
+      - name: hcpcs_5_mdfr_cd
+        data_type: varchar(2)
+      - name: clm_rev_apc_hipps_cd
+        data_type: varchar(5)
+      - name: clm_fac_prvdr_oscar_num
+        data_type: varchar(5)
+      - name: ingest_datetime
+        data_type: datetime2(6)
+      - name: file_cadence
+        data_type: varchar(8)
+      - name: file_priority
+        data_type: int
+
+  - name: int_selected_cclf_3
+    description: Selected CCLF3 records across monthly and weekly files.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: selected_cclf_3
+      tags: connector
+      contract:
+        enforced: "{{ target.type == 'fabric' and var('cclf_weekly_enabled', false) }}"
+        alias_types: false
+    columns:
+      - name: filename
+        data_type: varchar(128)
+      - name: cur_clm_uniq_id
+        data_type: varchar(13)
+      - name: bene_mbi_id
+        data_type: varchar(11)
+      - name: bene_hic_num
+        data_type: varchar(11)
+      - name: clm_type_cd
+        data_type: varchar(2)
+      - name: clm_val_sqnc_num
+        data_type: varchar(2)
+      - name: clm_prcdr_cd
+        data_type: varchar(7)
+      - name: clm_prcdr_prfrm_dt
+        data_type: varchar(10)
+      - name: bene_eqtbl_bic_hicn_num
+        data_type: varchar(11)
+      - name: prvdr_oscar_num
+        data_type: varchar(6)
+      - name: clm_from_dt
+        data_type: varchar(10)
+      - name: clm_thru_dt
+        data_type: varchar(10)
+      - name: dgns_prcdr_icd_ind
+        data_type: varchar(1)
+      - name: clm_blg_prvdr_oscar_num
+        data_type: varchar(10)
+      - name: ingest_datetime
+        data_type: datetime2(6)
+      - name: file_cadence
+        data_type: varchar(8)
+      - name: file_priority
+        data_type: int
+
+  - name: int_selected_cclf_4
+    description: Selected CCLF4 records across monthly and weekly files.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: selected_cclf_4
+      tags: connector
+      contract:
+        enforced: "{{ target.type == 'fabric' and var('cclf_weekly_enabled', false) }}"
+        alias_types: false
+    columns:
+      - name: filename
+        data_type: varchar(128)
+      - name: cur_clm_uniq_id
+        data_type: varchar(13)
+      - name: bene_mbi_id
+        data_type: varchar(11)
+      - name: bene_hic_num
+        data_type: varchar(11)
+      - name: clm_type_cd
+        data_type: varchar(2)
+      - name: clm_prod_type_cd
+        data_type: varchar(1)
+      - name: clm_val_sqnc_num
+        data_type: varchar(2)
+      - name: clm_dgns_cd
+        data_type: varchar(7)
+      - name: bene_eqtbl_bic_hicn_num
+        data_type: varchar(11)
+      - name: prvdr_oscar_num
+        data_type: varchar(6)
+      - name: clm_from_dt
+        data_type: varchar(10)
+      - name: clm_thru_dt
+        data_type: varchar(10)
+      - name: clm_poa_ind
+        data_type: varchar(7)
+      - name: dgns_prcdr_icd_ind
+        data_type: varchar(1)
+      - name: clm_blg_prvdr_oscar_num
+        data_type: varchar(10)
+      - name: ingest_datetime
+        data_type: datetime2(6)
+      - name: file_cadence
+        data_type: varchar(8)
+      - name: file_priority
+        data_type: int
+
+  - name: int_selected_cclf_5
+    description: Selected CCLF5 records across monthly and weekly files.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: selected_cclf_5
+      tags: connector
+      contract:
+        enforced: "{{ target.type == 'fabric' and var('cclf_weekly_enabled', false) }}"
+        alias_types: false
+    columns:
+      - name: filename
+        data_type: varchar(128)
+      - name: cur_clm_uniq_id
+        data_type: varchar(13)
+      - name: clm_line_num
+        data_type: varchar(10)
+      - name: bene_mbi_id
+        data_type: varchar(11)
+      - name: bene_hic_num
+        data_type: varchar(11)
+      - name: clm_type_cd
+        data_type: varchar(2)
+      - name: clm_from_dt
+        data_type: varchar(10)
+      - name: clm_thru_dt
+        data_type: varchar(10)
+      - name: rndrg_prvdr_type_cd
+        data_type: varchar(3)
+      - name: rndrg_prvdr_fips_st_cd
+        data_type: varchar(2)
+      - name: clm_prvdr_spclty_cd
+        data_type: varchar(2)
+      - name: clm_fed_type_srvc_cd
+        data_type: varchar(1)
+      - name: clm_pos_cd
+        data_type: varchar(2)
+      - name: clm_line_from_dt
+        data_type: varchar(10)
+      - name: clm_line_thru_dt
+        data_type: varchar(10)
+      - name: clm_line_hcpcs_cd
+        data_type: varchar(5)
+      - name: clm_line_cvrd_pd_amt
+        data_type: varchar(15)
+      - name: clm_line_prmry_pyr_cd
+        data_type: varchar(1)
+      - name: clm_line_dgns_cd
+        data_type: varchar(7)
+      - name: clm_rndrg_prvdr_tax_num
+        data_type: varchar(10)
+      - name: rndrg_prvdr_npi_num
+        data_type: varchar(10)
+      - name: clm_carr_pmt_dnl_cd
+        data_type: varchar(2)
+      - name: clm_prcsg_ind_cd
+        data_type: varchar(2)
+      - name: clm_adjsmt_type_cd
+        data_type: varchar(2)
+      - name: clm_efctv_dt
+        data_type: varchar(10)
+      - name: clm_idr_ld_dt
+        data_type: varchar(10)
+      - name: clm_cntl_num
+        data_type: varchar(40)
+      - name: bene_eqtbl_bic_hicn_num
+        data_type: varchar(11)
+      - name: clm_line_alowd_chrg_amt
+        data_type: varchar(17)
+      - name: clm_line_srvc_unit_qty
+        data_type: varchar(24)
+      - name: hcpcs_1_mdfr_cd
+        data_type: varchar(2)
+      - name: hcpcs_2_mdfr_cd
+        data_type: varchar(2)
+      - name: hcpcs_3_mdfr_cd
+        data_type: varchar(2)
+      - name: hcpcs_4_mdfr_cd
+        data_type: varchar(2)
+      - name: hcpcs_5_mdfr_cd
+        data_type: varchar(2)
+      - name: clm_disp_cd
+        data_type: varchar(2)
+      - name: clm_dgns_1_cd
+        data_type: varchar(7)
+      - name: clm_dgns_2_cd
+        data_type: varchar(7)
+      - name: clm_dgns_3_cd
+        data_type: varchar(7)
+      - name: clm_dgns_4_cd
+        data_type: varchar(7)
+      - name: clm_dgns_5_cd
+        data_type: varchar(7)
+      - name: clm_dgns_6_cd
+        data_type: varchar(7)
+      - name: clm_dgns_7_cd
+        data_type: varchar(7)
+      - name: clm_dgns_8_cd
+        data_type: varchar(7)
+      - name: dgns_prcdr_icd_ind
+        data_type: varchar(1)
+      - name: clm_dgns_9_cd
+        data_type: varchar(7)
+      - name: clm_dgns_10_cd
+        data_type: varchar(7)
+      - name: clm_dgns_11_cd
+        data_type: varchar(7)
+      - name: clm_dgns_12_cd
+        data_type: varchar(7)
+      - name: hcpcs_betos_cd
+        data_type: varchar(3)
+      - name: clm_rndrg_prvdr_npi_num
+        data_type: varchar(10)
+      - name: clm_rfrg_prvdr_npi_num
+        data_type: varchar(10)
+      - name: clm_cntrctr_num
+        data_type: varchar(10)
+      - name: ingest_datetime
+        data_type: datetime2(6)
+      - name: file_cadence
+        data_type: varchar(8)
+      - name: file_priority
+        data_type: int
+
+  - name: int_selected_cclf_6
+    description: Selected CCLF6 records across monthly and weekly files.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: selected_cclf_6
+      tags: connector
+      contract:
+        enforced: "{{ target.type == 'fabric' and var('cclf_weekly_enabled', false) }}"
+        alias_types: false
+    columns:
+      - name: filename
+        data_type: varchar(128)
+      - name: cur_clm_uniq_id
+        data_type: varchar(13)
+      - name: clm_line_num
+        data_type: varchar(10)
+      - name: bene_mbi_id
+        data_type: varchar(11)
+      - name: bene_hic_num
+        data_type: varchar(11)
+      - name: clm_type_cd
+        data_type: varchar(2)
+      - name: clm_from_dt
+        data_type: varchar(10)
+      - name: clm_thru_dt
+        data_type: varchar(10)
+      - name: clm_fed_type_srvc_cd
+        data_type: varchar(1)
+      - name: clm_pos_cd
+        data_type: varchar(2)
+      - name: clm_line_from_dt
+        data_type: varchar(10)
+      - name: clm_line_thru_dt
+        data_type: varchar(10)
+      - name: clm_line_hcpcs_cd
+        data_type: varchar(5)
+      - name: clm_line_cvrd_pd_amt
+        data_type: varchar(15)
+      - name: clm_prmry_pyr_cd
+        data_type: varchar(1)
+      - name: payto_prvdr_npi_num
+        data_type: varchar(10)
+      - name: ordrg_prvdr_npi_num
+        data_type: varchar(10)
+      - name: clm_carr_pmt_dnl_cd
+        data_type: varchar(2)
+      - name: clm_prcsg_ind_cd
+        data_type: varchar(2)
+      - name: clm_adjsmt_type_cd
+        data_type: varchar(2)
+      - name: clm_efctv_dt
+        data_type: varchar(10)
+      - name: clm_idr_ld_dt
+        data_type: varchar(10)
+      - name: clm_cntl_num
+        data_type: varchar(40)
+      - name: bene_eqtbl_bic_hicn_num
+        data_type: varchar(11)
+      - name: clm_line_alowd_chrg_amt
+        data_type: varchar(17)
+      - name: clm_disp_cd
+        data_type: varchar(2)
+      - name: clm_blg_prvdr_npi_num
+        data_type: varchar(10)
+      - name: clm_rfrg_prvdr_npi_num
+        data_type: varchar(10)
+      - name: ingest_datetime
+        data_type: datetime2(6)
+      - name: file_cadence
+        data_type: varchar(8)
+      - name: file_priority
+        data_type: int
+
+  - name: int_selected_cclf_8
+    description: Selected CCLF8 records across monthly and weekly files.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: selected_cclf_8
+      tags: connector
+      contract:
+        enforced: "{{ target.type == 'fabric' and var('cclf_weekly_enabled', false) }}"
+        alias_types: false
+    columns:
+      - name: filename
+        data_type: varchar(128)
+      - name: bene_mbi_id
+        data_type: varchar(11)
+      - name: bene_hic_num
+        data_type: varchar(11)
+      - name: bene_fips_state_cd
+        data_type: varchar(2)
+      - name: bene_fips_cnty_cd
+        data_type: varchar(3)
+      - name: bene_zip_cd
+        data_type: varchar(5)
+      - name: bene_dob
+        data_type: varchar(10)
+      - name: bene_sex_cd
+        data_type: varchar(1)
+      - name: bene_race_cd
+        data_type: varchar(1)
+      - name: bene_age
+        data_type: varchar(3)
+      - name: bene_mdcr_stus_cd
+        data_type: varchar(2)
+      - name: bene_dual_stus_cd
+        data_type: varchar(2)
+      - name: bene_death_dt
+        data_type: varchar(10)
+      - name: bene_rng_bgn_dt
+        data_type: varchar(10)
+      - name: bene_rng_end_dt
+        data_type: varchar(10)
+      - name: bene_1st_name
+        data_type: varchar(30)
+      - name: bene_midl_name
+        data_type: varchar(15)
+      - name: bene_last_name
+        data_type: varchar(40)
+      - name: bene_orgnl_entlmt_rsn_cd
+        data_type: varchar(1)
+      - name: bene_entlmt_buyin_ind
+        data_type: varchar(1)
+      - name: bene_part_a_enrlmt_bgn_dt
+        data_type: varchar(10)
+      - name: bene_part_b_enrlmt_bgn_dt
+        data_type: varchar(10)
+      - name: bene_line_1_adr
+        data_type: varchar(45)
+      - name: bene_line_2_adr
+        data_type: varchar(45)
+      - name: bene_line_3_adr
+        data_type: varchar(40)
+      - name: bene_line_4_adr
+        data_type: varchar(40)
+      - name: bene_line_5_adr
+        data_type: varchar(40)
+      - name: bene_line_6_adr
+        data_type: varchar(40)
+      - name: geo_zip_plc_name
+        data_type: varchar(100)
+      - name: geo_usps_state_cd
+        data_type: varchar(2)
+      - name: geo_zip5_cd
+        data_type: varchar(5)
+      - name: geo_zip4_cd
+        data_type: varchar(4)
+      - name: ingest_datetime
+        data_type: datetime2(6)
+      - name: file_cadence
+        data_type: varchar(8)
+      - name: file_priority
+        data_type: int
+
+  - name: int_selected_cclf_9
+    description: Selected CCLF9 records across monthly and weekly files.
+    config:
+      schema: |
+        {%- if var('tuva_schema_prefix',None) != None -%}_{{var('tuva_schema_prefix')}}_int_input_layer{% else %}_int_input_layer{%- endif -%}
+      alias: selected_cclf_9
+      tags: connector
+      contract:
+        enforced: "{{ target.type == 'fabric' and var('cclf_weekly_enabled', false) }}"
+        alias_types: false
+    columns:
+      - name: filename
+        data_type: varchar(128)
+      - name: hicn_mbi_xref_ind
+        data_type: varchar(1)
+      - name: crnt_num
+        data_type: varchar(11)
+      - name: prvs_num
+        data_type: varchar(11)
+      - name: prvs_id_efctv_dt
+        data_type: varchar(10)
+      - name: prvs_id_obslt_dt
+        data_type: varchar(10)
+      - name: bene_rrb_num
+        data_type: varchar(12)
+      - name: ingest_datetime
+        data_type: datetime2(6)
+      - name: file_cadence
+        data_type: varchar(8)
+      - name: file_priority
+        data_type: int

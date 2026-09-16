@@ -12,6 +12,33 @@ with unioned as (
 
 )
 
+{% if var('bnex_enabled', false) %}
+/* drop claims for beneficiaries who declined data sharing, from the performance
+   year of the exclusion onward */
+, filtered as (
+
+    select unioned.*
+    from unioned
+    left join {{ ref('int_bnex_bd') }} bd
+        on unioned.member_id = bd.current_bene_mbi_id
+       and year(coalesce(
+            unioned.claim_start_date,
+            unioned.claim_end_date,
+            unioned.claim_line_start_date,
+            unioned.claim_line_end_date,
+            unioned.paid_date
+           )) >= bd.performance_year
+    where bd.current_bene_mbi_id is null
+
+)
+{% else %}
+, filtered as (
+
+    select * from unioned
+
+)
+{% endif %}
+
 select
       claim_id
     , claim_line_number
@@ -175,6 +202,8 @@ select
     , file_name
     , file_date
     , ingest_datetime
+    , file_cadence
+    , file_priority
     , cast({{ dbt.current_timestamp() }} as {{ dbt.type_timestamp() }}) as tuva_last_run
     , paid_source
     , clm_hipps_uncompd_care_amt clm_hipps_uncompd_care_amt
@@ -182,4 +211,4 @@ select
     , clm_oprtnl_ime_amt clm_oprtnl_ime_amt
     , clm_mdcr_ip_pps_dsprprtnt_amt clm_mdcr_ip_pps_dsprprtnt_amt
     , clm_oprtnl_dsprprtnt_amt clm_oprtnl_dsprprtnt_amt       
-from unioned
+from filtered
