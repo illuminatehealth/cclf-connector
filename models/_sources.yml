@@ -46,6 +46,8 @@ sources:
         identifier: "{{ var('alr_retro_identifier', 'alr_1_1_retro') }}"
       - name: mssp_attribution
         identifier: "{{ var('custom_attribution_identifier', 'mssp_attribution') }}"
+      - name: cclf_bnex
+        identifier: "{{ var('bnex_identifier', 'cclf_bnex') }}"
 
   # Weekly CCLF tables. Only read when `cclf_weekly_enabled` is true.
   - name: lakehouse_weekly

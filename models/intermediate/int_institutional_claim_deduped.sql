@@ -360,6 +360,18 @@ s.row_num = m.max_row_num_key
 
 )
 
+/* header-level payments and add-on amounts are placed on the lowest line number that
+   survived dedupe, which is not always line 1 */
+, header_payment_line as (
+
+    select
+          cur_clm_uniq_id
+        , min(coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1)) as header_payment_line_number
+    from remove_dupes
+    group by cur_clm_uniq_id
+
+)
+
 , mapping as (
 
     select
@@ -438,18 +450,18 @@ s.row_num = m.max_row_num_key
           /* use flag to determine if claim line payments should be used */
         , case
             when use_line_payments_flag = 1 then {{ cast_numeric('clm_line_cvrd_pd_amt') }}
-            when use_line_payments_flag = 0 and coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = 1 then {{ cast_numeric('remove_dupes.clm_pmt_amt') }}
+            when use_line_payments_flag = 0 and coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = header_payment_line.header_payment_line_number then {{ cast_numeric('remove_dupes.clm_pmt_amt') }}
             else 0
           end as paid_amount
         , case
             when use_line_payments_flag = 1 then
               {{ cast_numeric('clm_line_cvrd_pd_amt') }}/.98 /* seq */
-              - case when clm_line_num = 1 then {{ cast_numeric('clm_hipps_uncompd_care_amt') }} else 0 end
-              - case when clm_line_num = 1 then {{ cast_numeric('clm_mdcr_ip_pps_cptl_ime_amt') }} else 0 end
-              - case when clm_line_num = 1 then {{ cast_numeric('clm_oprtnl_ime_amt') }} else 0 end
-              - case when clm_line_num = 1 then {{ cast_numeric('clm_mdcr_ip_pps_dsprprtnt_amt') }} else 0 end
-              - case when clm_line_num = 1 then {{ cast_numeric('clm_oprtnl_dsprprtnt_amt') }} else 0 end
-            when coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = 1 then
+              - case when coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = header_payment_line.header_payment_line_number then {{ cast_numeric('clm_hipps_uncompd_care_amt') }} else 0 end
+              - case when coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = header_payment_line.header_payment_line_number then {{ cast_numeric('clm_mdcr_ip_pps_cptl_ime_amt') }} else 0 end
+              - case when coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = header_payment_line.header_payment_line_number then {{ cast_numeric('clm_oprtnl_ime_amt') }} else 0 end
+              - case when coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = header_payment_line.header_payment_line_number then {{ cast_numeric('clm_mdcr_ip_pps_dsprprtnt_amt') }} else 0 end
+              - case when coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = header_payment_line.header_payment_line_number then {{ cast_numeric('clm_oprtnl_dsprprtnt_amt') }} else 0 end
+            when coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = header_payment_line.header_payment_line_number then
               {{ cast_numeric('remove_dupes.clm_pmt_amt') }}/.98 /* seq */
               - {{ cast_numeric('clm_hipps_uncompd_care_amt') }}
               - {{ cast_numeric('clm_mdcr_ip_pps_cptl_ime_amt') }}
@@ -587,18 +599,20 @@ s.row_num = m.max_row_num_key
         , file_priority as file_priority
         , case
             when use_line_payments_flag = 1 then 'line payments' 
-            when use_line_payments_flag = 0 and coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = 1 then 'header payments'
+            when use_line_payments_flag = 0 and coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = header_payment_line.header_payment_line_number then 'header payments'
             
           end as paid_source
-          , case when clm_line_num = 1 then {{ cast_numeric('clm_hipps_uncompd_care_amt') }} else 0 end as clm_hipps_uncompd_care_amt
-          , case when clm_line_num = 1 then {{ cast_numeric('clm_mdcr_ip_pps_cptl_ime_amt') }} else 0 end as clm_mdcr_ip_pps_cptl_ime_amt
-          , case when clm_line_num = 1 then {{ cast_numeric('clm_oprtnl_ime_amt') }} else 0 end as clm_oprtnl_ime_amt
-          , case when clm_line_num = 1 then {{ cast_numeric('clm_mdcr_ip_pps_dsprprtnt_amt') }} else 0 end as clm_mdcr_ip_pps_dsprprtnt_amt
-          , case when clm_line_num = 1 then {{ cast_numeric('clm_oprtnl_dsprprtnt_amt') }} else 0 end as clm_oprtnl_dsprprtnt_amt
+          , case when coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = header_payment_line.header_payment_line_number then {{ cast_numeric('clm_hipps_uncompd_care_amt') }} else 0 end as clm_hipps_uncompd_care_amt
+          , case when coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = header_payment_line.header_payment_line_number then {{ cast_numeric('clm_mdcr_ip_pps_cptl_ime_amt') }} else 0 end as clm_mdcr_ip_pps_cptl_ime_amt
+          , case when coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = header_payment_line.header_payment_line_number then {{ cast_numeric('clm_oprtnl_ime_amt') }} else 0 end as clm_oprtnl_ime_amt
+          , case when coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = header_payment_line.header_payment_line_number then {{ cast_numeric('clm_mdcr_ip_pps_dsprprtnt_amt') }} else 0 end as clm_mdcr_ip_pps_dsprprtnt_amt
+          , case when coalesce(cast(clm_line_num as {{ dbt.type_int() }}), 1) = header_payment_line.header_payment_line_number then {{ cast_numeric('clm_oprtnl_dsprprtnt_amt') }} else 0 end as clm_oprtnl_dsprprtnt_amt
     from remove_dupes
     cross join {{ ref('metadata_fields') }} m 
     left join check_payment_totals
       on remove_dupes.cur_clm_uniq_id = check_payment_totals.cur_clm_uniq_id
+    left join header_payment_line
+      on remove_dupes.cur_clm_uniq_id = header_payment_line.cur_clm_uniq_id
 
 )
 

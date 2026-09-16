@@ -133,6 +133,9 @@ different layouts without editing the project.
 | `alr_identifier` | `alr_1_1` | Prospective ALR 1-1 table |
 | `alr_retro_identifier` | `alr_1_1_retro` | Retrospective ALR 1-1 table |
 | `custom_attribution_identifier` | `mssp_attribution` | Provider attribution roster |
+| `custom_attribution_enabled` | `true` | Set false when you have no roster; `provider_attribution` is then empty |
+| `bnex_enabled` | `false` | Drop claims for beneficiaries who declined data sharing |
+| `bnex_identifier` | `cclf_bnex` | CMS beneficiary exclusion (BNEX) table |
 
 Any single table can be overridden with `cclf_<n>_identifier` or
 `cclf_<n>_weekly_identifier`, which take precedence over the prefix and suffix.
@@ -162,10 +165,27 @@ eligibility inside the connector:
 - `provider_attribution` comes from an attribution roster you supply at member
   and year grain (`custom_attribution_identifier`) and is expanded to months
   using the Tuva calendar, with historical MBIs mapped to the current MBI
-  through CCLF9.
+  through CCLF9. Set `custom_attribution_enabled` to false if you have no
+  roster.
 
 Beneficiary MBIs are normalized through CCLF9 in every one of these paths, in
 line with section 5.1.1 of the Information Packet.
+
+### Other changes from the upstream connector
+
+**Institutional header payments follow the lowest surviving line.** When the
+revenue center lines of a Part A claim do not sum to the header payment, the
+connector places the header payment and the IME, DSH and uncompensated care
+amounts on a single line. Upstream that line is always line 1. After
+deduplication line 1 is not always present, so this fork uses the lowest line
+number that survived, and a test confirms header payments are never dropped.
+
+**Beneficiaries who declined data sharing can be excluded.** CMS sends MSSP
+ACOs a beneficiary exclusion (BNEX) file. With `bnex_enabled` set to true the
+connector reads it from `bnex_identifier` (columns `mbi`, `performance_year`,
+`report_month`, `bene_exc_reason`) and drops medical claims for beneficiaries
+with reason `BD` from the performance year of the exclusion onward. MBIs in
+the file are mapped to the current MBI through CCLF9.
 
 ### Fabric support
 
